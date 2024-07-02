@@ -1,6 +1,6 @@
 # Shogun PageBuilder with Shopify Hydrogen V2 Example
 
-This repository shows how you can integrate the Shogun PageBuilder with Shopify Hydrogen V2.
+This repository shows how you can integrate the Shogun PageBuilder with Shopify Hydrogen V2. To use Shogun with Hydrogen, you must have Shogun installed on your Shopify store and you must be on the Shogun's Advanced plan. Shopify requires Hydrogen users be on Shopify Plus.
 
 ## Setup
 
