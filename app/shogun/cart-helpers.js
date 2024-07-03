@@ -1,19 +1,19 @@
-import {CartForm} from '@shopify/hydrogen';
+import { CartForm } from '@shopify/hydrogen';
 
 /**
- * Parse the FormData created by Shogun PageBuilder and map it to the FormData used by the Hydrogen action /cart.
+ * Parse the FormData created by Shogun and map it to the FormData used by the Hydrogen action /cart.
  *
- * @param {FormData} pbFormData
+ * @param {FormData} shgFormData
  * @param {import('@remix-run/react').SubmitFunction} submit
  */
-export function addToCart(pbFormData, submit) {
-  const productId = pbFormData.get('id');
+export function addToCart(shgFormData, submit) {
+  const productId = shgFormData.get('id');
 
   if (!productId) {
     throw new Error('Something went wrong - product id is not defined');
   }
 
-  const quantity = Number(pbFormData.get('quantity')) || 1;
+  const quantity = Number(shgFormData.get('quantity')) || 1;
 
   const line = {
     merchandiseId: `gid://shopify/ProductVariant/${productId}`,
@@ -24,7 +24,7 @@ export function addToCart(pbFormData, submit) {
     lines: [line],
   });
 
-  submit(formData, {method: 'POST', action: '/cart'});
+  submit(formData, { method: 'POST', action: '/cart' });
 }
 
 /**

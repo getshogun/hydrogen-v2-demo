@@ -1,7 +1,7 @@
 /**
- * The Content Security Policy directives to support Page Builder integration
+ * The Content Security Policy directives to support Shogun integration
  */
-export const PB_CSP_DIRECTIVES = {
+export const SHOGUN_CSP_DIRECTIVES = {
   defaultSrc: [
     // -- start: shopify defaults
     "'self'",
