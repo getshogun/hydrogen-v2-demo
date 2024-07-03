@@ -1,17 +1,30 @@
-import {RemixServer} from '@remix-run/react';
+import { RemixServer } from '@remix-run/react';
 import isbot from 'isbot';
-import {renderToReadableStream} from 'react-dom/server';
-import {createContentSecurityPolicy} from '@shopify/hydrogen';
-import {PB_CSP_DIRECTIVES} from './pagebuilder';
+import { renderToReadableStream } from 'react-dom/server';
+import { createContentSecurityPolicy } from '@shopify/hydrogen';
+import { PB_CSP_DIRECTIVES } from '~/pagebuilder';
 
+/**
+ * @param {Request} request
+ * @param {number} responseStatusCode
+ * @param {Headers} responseHeaders
+ * @param {EntryContext} remixContext
+ * @param {AppLoadContext} context
+ */
 export default async function handleRequest(
   request,
   responseStatusCode,
   responseHeaders,
   remixContext,
+  context,
 ) {
-  let {nonce, header, NonceProvider} =
-    createContentSecurityPolicy(PB_CSP_DIRECTIVES);
+  const { nonce, header, NonceProvider } = createContentSecurityPolicy({
+    ...PB_CSP_DIRECTIVES,
+    shop: {
+      checkoutDomain: context.env.PUBLIC_CHECKOUT_DOMAIN,
+      storeDomain: context.env.PUBLIC_STORE_DOMAIN,
+    },
+  });
 
   const body = await renderToReadableStream(
     <NonceProvider>
@@ -40,3 +53,6 @@ export default async function handleRequest(
     status: responseStatusCode,
   });
 }
+
+/** @typedef {import('@shopify/remix-oxygen').EntryContext} EntryContext */
+/** @typedef {import('@shopify/remix-oxygen').AppLoadContext} AppLoadContext */

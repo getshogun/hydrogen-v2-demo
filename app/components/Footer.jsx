@@ -1,16 +1,37 @@
-import {useMatches, NavLink} from '@remix-run/react';
+import {Suspense} from 'react';
+import {Await, NavLink} from '@remix-run/react';
 
-export function Footer({menu}) {
+/**
+ * @param {FooterProps}
+ */
+export function Footer({footer: footerPromise, header, publicStoreDomain}) {
   return (
-    <footer className="footer">
-      <FooterMenu menu={menu} />
-    </footer>
+    <Suspense>
+      <Await resolve={footerPromise}>
+        {(footer) => (
+          <footer className="footer">
+            {footer?.menu && header.shop.primaryDomain?.url && (
+              <FooterMenu
+                menu={footer.menu}
+                primaryDomainUrl={header.shop.primaryDomain.url}
+                publicStoreDomain={publicStoreDomain}
+              />
+            )}
+          </footer>
+        )}
+      </Await>
+    </Suspense>
   );
 }
 
-function FooterMenu({menu}) {
-  const [root] = useMatches();
-  const publicStoreDomain = root?.data?.publicStoreDomain;
+/**
+ * @param {{
+ *   menu: FooterQuery['menu'];
+ *   primaryDomainUrl: FooterProps['header']['shop']['primaryDomain']['url'];
+ *   publicStoreDomain: string;
+ * }}
+ */
+function FooterMenu({menu, primaryDomainUrl, publicStoreDomain}) {
   return (
     <nav className="footer-menu" role="navigation">
       {(menu || FALLBACK_FOOTER_MENU).items.map((item) => {
@@ -18,7 +39,8 @@ function FooterMenu({menu}) {
         // if the url is internal, we strip the domain
         const url =
           item.url.includes('myshopify.com') ||
-          item.url.includes(publicStoreDomain)
+          item.url.includes(publicStoreDomain) ||
+          item.url.includes(primaryDomainUrl)
             ? new URL(item.url).pathname
             : item.url;
         const isExternal = !url.startsWith('/');
@@ -84,9 +106,25 @@ const FALLBACK_FOOTER_MENU = {
   ],
 };
 
+/**
+ * @param {{
+ *   isActive: boolean;
+ *   isPending: boolean;
+ * }}
+ */
 function activeLinkStyle({isActive, isPending}) {
   return {
     fontWeight: isActive ? 'bold' : undefined,
     color: isPending ? 'grey' : 'white',
   };
 }
+
+/**
+ * @typedef {Object} FooterProps
+ * @property {Promise<FooterQuery|null>} footer
+ * @property {HeaderQuery} header
+ * @property {string} publicStoreDomain
+ */
+
+/** @typedef {import('storefrontapi.generated').FooterQuery} FooterQuery */
+/** @typedef {import('storefrontapi.generated').HeaderQuery} HeaderQuery */

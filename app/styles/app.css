@@ -48,9 +48,10 @@ aside header .close {
   text-decoration: none;
   transition: all 200ms;
   width: 20px;
-  &:hover {
-    opacity: 1;
-  }
+}
+
+aside header .close:hover {
+  opacity: 1;
 }
 
 aside header h2 {
@@ -64,9 +65,10 @@ aside main {
 
 aside p {
   margin: 0 0 0.25rem;
-  &:last-child {
-    margin: 0;
-  }
+}
+
+aside p:last-child {
+  margin: 0;
 }
 
 aside li {
@@ -110,16 +112,34 @@ aside li {
   width: 100%;
 }
 
-.overlay {
-  &:target {
-    opacity: 1;
-    pointer-events: auto;
-    visibility: visible;
-  }
-  /* reveal aside */
-  &:target aside {
-    transform: translateX(calc(var(--aside-width) * -1));
-  }
+.overlay.expanded {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+}
+/* reveal aside */
+.overlay.expanded aside {
+  transform: translateX(calc(var(--aside-width) * -1));
+}
+
+button.reset {
+  border: 0;
+  background: inherit;
+  font-size: inherit;
+}
+
+button.reset > * {
+  margin: 0;
+}
+
+button.reset:not(:has(> *)) {
+  height: 1.5rem;
+  line-height: 1.5rem;
+}
+
+button.reset:hover:not(:has(> *)) {
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /*
@@ -181,11 +201,6 @@ aside li {
   margin-top: auto;
 }
 
-.footer-menu-missing {
-  display: inline-block;
-  margin: 1rem;
-}
-
 .footer-menu {
   align-items: center;
   display: flex;
@@ -237,7 +252,7 @@ aside li {
   width: calc(var(--aside-width) - 40px);
 }
 
-.cart-line-quantiy {
+.cart-line-quantity {
   display: flex;
 }
 
@@ -295,6 +310,13 @@ aside li {
 
 .search-results-item {
   margin-bottom: 0.5rem;
+}
+
+.search-results-item a {
+  display: flex;
+  flex: row;
+  align-items: center;
+  gap: 1rem;
 }
 
 /*
@@ -392,11 +414,6 @@ aside li {
   margin-top: 0;
 }
 
-.product-images {
-  display: grid;
-  grid-gap: 1rem;
-}
-
 .product-image img {
   height: auto;
   width: 100%;
@@ -463,10 +480,6 @@ aside li {
 * routes/account
 * --------------------------------------------------
 */
-.account-profile-marketing {
-  display: flex;
-  align-items: center;
-}
 
 .account-logout {
   display: inline-block;

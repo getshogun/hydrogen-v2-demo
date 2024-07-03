@@ -18,6 +18,8 @@ This repository shows how you can integrate the Shogun PageBuilder with Shopify 
 
     REPO_URL="https://raw.githubusercontent.com/getshogun/hydrogen-v2-demo"
 
+    mkdir -p app/pagebuilder
+
     # List of file names to copy
     FILES=(
         "app/pagebuilder/cart-helpers.js"
@@ -54,14 +56,22 @@ This repository shows how you can integrate the Shogun PageBuilder with Shopify 
    ```jsx
    import {PB_CSP_DIRECTIVES} from '~/pagebuilder'; // 1. import the custom CSP directives
 
-   const {nonce, header, NonceProvider} =
-     createContentSecurityPolicy(PB_CSP_DIRECTIVES); // 2. pass to createContentSecurityPolicy function
+   const {nonce, header, NonceProvider} = createContentSecurityPolicy({
+     // 2. pass to createContentSecurityPolicy function
+     ...PB_CSP_DIRECTIVES,
+     shop: {
+       checkoutDomain: context.env.PUBLIC_CHECKOUT_DOMAIN,
+       storeDomain: context.env.PUBLIC_STORE_DOMAIN,
+     },
+   });
    ```
 
 5. Start your local server
-   ```sh
-   npm run dev
-   ```
+
+```sh
+npm run dev
+```
+
 6. Create a PageBuilder account.
 7. Create a new page within page builder with path /testing using the drag-and-drop editor.
 8. Click Publish within PageBuilder.
