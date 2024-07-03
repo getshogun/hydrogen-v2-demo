@@ -3,12 +3,12 @@ import { useFetcher } from '@remix-run/react';
 import { addToCart } from './cart-helpers';
 
 /**
- * PageBuilder Page component handles initialising page and cart events
+ * Shogun Page component handles initialising page and cart events
  *
  * @param {Object} props
  * @param {String} props.pageData
  */
-export function PageBuilderPage({ pageData }) {
+export function ShogunPage({ pageData }) {
   const ref = useRef();
   const fetcher = useFetcher();
 
@@ -24,7 +24,7 @@ export function PageBuilderPage({ pageData }) {
 
     element.addEventListener('submit', onSubmit);
 
-    dispatchPageBuilderLoadEvent(element);
+    dispatchShogunLoadEvent(element);
 
     return () => {
       element.removeEventListener('submit', onSubmit);
@@ -41,7 +41,7 @@ export function PageBuilderPage({ pageData }) {
 /**
  * @param {HTMLDivElement} rootElement
  */
-function dispatchPageBuilderLoadEvent(rootElement) {
+function dispatchShogunLoadEvent(rootElement) {
   const event = new Event('pagebuilder:load', {
     bubbles: true,
     cancelable: true,

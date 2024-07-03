@@ -1,8 +1,8 @@
-import {useLoaderData} from '@remix-run/react';
-import {PageBuilderPage, getPageBuilderPage} from '~/pagebuilder';
+import { useLoaderData } from '@remix-run/react';
+import { ShogunPage, getShogunPage } from '~/shogun';
 
 // If you host this route under a different path, update the BASE_PATH
-const BASE_PATH = '/pagebuilder';
+const BASE_PATH = '/shogun';
 
 /*
  * We cache the page for 30s and set stale-while-revalidate to 30s
@@ -14,19 +14,19 @@ const BASE_PATH = '/pagebuilder';
 const CACHE_CONTROL = 'public, max-age=30, stale-while-revalidate=30';
 
 /*
- * Request the page with path from Shogun PageBuilder
+ * Request the page with path from Shogun
  *
- * e.g. /pagebuilder/my-blog -> requests /my-blog from Shogun PageBuilder
+ * e.g. /shogun/my-blog -> requests /my-blog from Shogun
  */
-export async function loader({request, context}) {
+export async function loader({ request, context }) {
   const url = new URL(request.url);
   const path = url.pathname.split(BASE_PATH).at(-1);
 
   const storeDomain = context.env.PUBLIC_STORE_DOMAIN;
 
-  const pbPage = await getPageBuilderPage(storeDomain, path);
+  const shgPage = await getShogunPage(storeDomain, path);
 
-  return new Response(pbPage, {
+  return new Response(shgPage, {
     headers: {
       'Content-Type': 'application/text',
       'Cache-Control': CACHE_CONTROL,
@@ -34,8 +34,8 @@ export async function loader({request, context}) {
   });
 }
 
-export default function PageBuilder() {
+export default function Shogun() {
   const pageData = useLoaderData();
 
-  return <PageBuilderPage pageData={pageData} />;
+  return <ShogunPage pageData={pageData} />;
 }

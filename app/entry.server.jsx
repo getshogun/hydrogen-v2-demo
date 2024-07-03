@@ -2,7 +2,7 @@ import { RemixServer } from '@remix-run/react';
 import isbot from 'isbot';
 import { renderToReadableStream } from 'react-dom/server';
 import { createContentSecurityPolicy } from '@shopify/hydrogen';
-import { PB_CSP_DIRECTIVES } from '~/pagebuilder';
+import { SHOGUN_CSP_DIRECTIVES } from '~/shogun';
 
 /**
  * @param {Request} request
@@ -19,7 +19,7 @@ export default async function handleRequest(
   context,
 ) {
   const { nonce, header, NonceProvider } = createContentSecurityPolicy({
-    ...PB_CSP_DIRECTIVES,
+    ...SHOGUN_CSP_DIRECTIVES,
     shop: {
       checkoutDomain: context.env.PUBLIC_CHECKOUT_DOMAIN,
       storeDomain: context.env.PUBLIC_STORE_DOMAIN,
