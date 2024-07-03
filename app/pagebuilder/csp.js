@@ -11,6 +11,12 @@ export const PB_CSP_DIRECTIVES = {
     // -- end: shopify defaults
 
     'https://cdn.getshogun.com',
+    'https://i.shgcdn.com',
+    'https://views.unsplash.com',
+    'https://fonts.gstatic.com',
+    'https://www.youtube.com',
+    'https://img.youtube.com',
+    'https://maxcdn.bootstrapcdn.com',
   ],
   styleSrc: [
     // -- start: shopify defaults
@@ -20,5 +26,7 @@ export const PB_CSP_DIRECTIVES = {
     // -- end: shopify defaults
 
     'https://cdn.getshogun.com',
+    'https://i.shgcdn.com',
+    'https://fonts.googleapis.com',
   ],
 };

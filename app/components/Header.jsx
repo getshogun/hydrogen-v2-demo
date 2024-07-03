@@ -1,22 +1,43 @@
-import {Await, NavLink, useMatches} from '@remix-run/react';
 import {Suspense} from 'react';
+import {Await, NavLink} from '@remix-run/react';
+import {useAnalytics} from '@shopify/hydrogen';
+import {useAside} from '~/components/Aside';
 
-export function Header({header, isLoggedIn, cart}) {
+/**
+ * @param {HeaderProps}
+ */
+export function Header({header, isLoggedIn, cart, publicStoreDomain}) {
   const {shop, menu} = header;
   return (
     <header className="header">
       <NavLink prefetch="intent" to="/" style={activeLinkStyle} end>
         <strong>{shop.name}</strong>
       </NavLink>
-      <HeaderMenu menu={menu} viewport="desktop" />
+      <HeaderMenu
+        menu={menu}
+        viewport="desktop"
+        primaryDomainUrl={header.shop.primaryDomain.url}
+        publicStoreDomain={publicStoreDomain}
+      />
       <HeaderCtas isLoggedIn={isLoggedIn} cart={cart} />
     </header>
   );
 }
 
-export function HeaderMenu({menu, viewport}) {
-  const [root] = useMatches();
-  const publicStoreDomain = root?.data?.publicStoreDomain;
+/**
+ * @param {{
+ *   menu: HeaderProps['header']['menu'];
+ *   primaryDomainUrl: HeaderProps['header']['shop']['primaryDomain']['url'];
+ *   viewport: Viewport;
+ *   publicStoreDomain: HeaderProps['publicStoreDomain'];
+ * }}
+ */
+export function HeaderMenu({
+  menu,
+  primaryDomainUrl,
+  viewport,
+  publicStoreDomain,
+}) {
   const className = `header-menu-${viewport}`;
 
   function closeAside(event) {
@@ -45,7 +66,8 @@ export function HeaderMenu({menu, viewport}) {
         // if the url is internal, we strip the domain
         const url =
           item.url.includes('myshopify.com') ||
-          item.url.includes(publicStoreDomain)
+          item.url.includes(publicStoreDomain) ||
+          item.url.includes(primaryDomainUrl)
             ? new URL(item.url).pathname
             : item.url;
         return (
@@ -66,12 +88,19 @@ export function HeaderMenu({menu, viewport}) {
   );
 }
 
+/**
+ * @param {Pick<HeaderProps, 'isLoggedIn' | 'cart'>}
+ */
 function HeaderCtas({isLoggedIn, cart}) {
   return (
     <nav className="header-ctas" role="navigation">
       <HeaderMenuMobileToggle />
       <NavLink prefetch="intent" to="/account" style={activeLinkStyle}>
-        {isLoggedIn ? 'Account' : 'Sign in'}
+        <Suspense fallback="Sign in">
+          <Await resolve={isLoggedIn} errorElement="Sign in">
+            {(isLoggedIn) => (isLoggedIn ? 'Account' : 'Sign in')}
+          </Await>
+        </Suspense>
       </NavLink>
       <SearchToggle />
       <CartToggle cart={cart} />
@@ -80,21 +109,55 @@ function HeaderCtas({isLoggedIn, cart}) {
 }
 
 function HeaderMenuMobileToggle() {
+  const {open} = useAside();
   return (
-    <a className="header-menu-mobile-toggle" href="#mobile-menu-aside">
+    <button
+      className="header-menu-mobile-toggle reset"
+      onClick={() => open('mobile')}
+    >
       <h3>☰</h3>
-    </a>
+    </button>
   );
 }
 
 function SearchToggle() {
-  return <a href="#search-aside">Search</a>;
+  const {open} = useAside();
+  return (
+    <button className="reset" onClick={() => open('search')}>
+      Search
+    </button>
+  );
 }
 
+/**
+ * @param {{count: number}}
+ */
 function CartBadge({count}) {
-  return <a href="#cart-aside">Cart {count}</a>;
+  const {open} = useAside();
+  const {publish, shop, cart, prevCart} = useAnalytics();
+
+  return (
+    <a
+      href="/cart"
+      onClick={(e) => {
+        e.preventDefault();
+        open('cart');
+        publish('cart_viewed', {
+          cart,
+          prevCart,
+          shop,
+          url: window.location.href || '',
+        });
+      }}
+    >
+      Cart {count}
+    </a>
+  );
 }
 
+/**
+ * @param {Pick<HeaderProps, 'cart'>}
+ */
 function CartToggle({cart}) {
   return (
     <Suspense fallback={<CartBadge count={0} />}>
@@ -150,9 +213,28 @@ const FALLBACK_HEADER_MENU = {
   ],
 };
 
+/**
+ * @param {{
+ *   isActive: boolean;
+ *   isPending: boolean;
+ * }}
+ */
 function activeLinkStyle({isActive, isPending}) {
   return {
     fontWeight: isActive ? 'bold' : undefined,
     color: isPending ? 'grey' : 'black',
   };
 }
+
+/** @typedef {'desktop' | 'mobile'} Viewport */
+/**
+ * @typedef {Object} HeaderProps
+ * @property {HeaderQuery} header
+ * @property {Promise<CartApiQueryFragment|null>} cart
+ * @property {Promise<boolean>} isLoggedIn
+ * @property {string} publicStoreDomain
+ */
+
+/** @typedef {import('@shopify/hydrogen').CartViewPayload} CartViewPayload */
+/** @typedef {import('storefrontapi.generated').HeaderQuery} HeaderQuery */
+/** @typedef {import('storefrontapi.generated').CartApiQueryFragment} CartApiQueryFragment */

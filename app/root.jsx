@@ -1,24 +1,25 @@
-import {useNonce} from '@shopify/hydrogen';
+import {useNonce, getShopAnalytics, Analytics} from '@shopify/hydrogen';
 import {defer} from '@shopify/remix-oxygen';
 import {
   Links,
   Meta,
   Outlet,
   Scripts,
-  LiveReload,
-  useMatches,
   useRouteError,
-  useLoaderData,
+  useRouteLoaderData,
   ScrollRestoration,
   isRouteErrorResponse,
 } from '@remix-run/react';
-import favicon from '../public/favicon.svg';
-import resetStyles from './styles/reset.css';
-import appStyles from './styles/app.css';
-import {Layout} from '~/components/Layout';
-import tailwindCss from './styles/tailwind.css';
+import favicon from '~/assets/favicon.svg';
+import resetStyles from '~/styles/reset.css?url';
+import appStyles from '~/styles/app.css?url';
+import {PageLayout} from '~/components/PageLayout';
+import {FOOTER_QUERY, HEADER_QUERY} from '~/lib/fragments';
 
-// This is important to avoid re-fetching root queries on sub-navigations
+/**
+ * This is important to avoid re-fetching root queries on sub-navigations
+ * @type {ShouldRevalidateFunction}
+ */
 export const shouldRevalidate = ({formMethod, currentUrl, nextUrl}) => {
   // revalidate when a mutation is performed e.g add to cart, login...
   if (formMethod && formMethod !== 'GET') {
@@ -35,7 +36,6 @@ export const shouldRevalidate = ({formMethod, currentUrl, nextUrl}) => {
 
 export function links() {
   return [
-    {rel: 'stylesheet', href: tailwindCss},
     {rel: 'stylesheet', href: resetStyles},
     {rel: 'stylesheet', href: appStyles},
     {
@@ -50,51 +50,99 @@ export function links() {
   ];
 }
 
-export async function loader({context}) {
-  const {storefront, session, cart} = context;
-  const customerAccessToken = await session.get('customerAccessToken');
-  const publicStoreDomain = context.env.PUBLIC_STORE_DOMAIN;
+/**
+ * @param {LoaderFunctionArgs} args
+ */
+export async function loader(args) {
+  // Start fetching non-critical data without blocking time to first byte
+  const deferredData = loadDeferredData(args);
 
-  // validate the customer access token is valid
-  const {isLoggedIn, headers} = await validateCustomerAccessToken(
-    customerAccessToken,
-    session,
-  );
+  // Await the critical data required to render initial state of the page
+  const criticalData = await loadCriticalData(args);
 
-  // defer the cart query by not awaiting it
-  const cartPromise = cart.get();
-
-  // defer the footer query (below the fold)
-  const footerPromise = storefront.query(FOOTER_QUERY, {
-    cache: storefront.CacheLong(),
-    variables: {
-      footerMenuHandle: 'footer', // Adjust to your footer menu handle
-    },
-  });
-
-  // await the header query (above the fold)
-  const headerPromise = storefront.query(HEADER_QUERY, {
-    cache: storefront.CacheLong(),
-    variables: {
-      headerMenuHandle: 'main-menu', // Adjust to your header menu handle
-    },
-  });
+  const {storefront, env} = args.context;
 
   return defer(
     {
-      cart: cartPromise,
-      footer: footerPromise,
-      header: await headerPromise,
-      isLoggedIn,
-      publicStoreDomain,
+      ...deferredData,
+      ...criticalData,
+      publicStoreDomain: env.PUBLIC_STORE_DOMAIN,
+      shop: getShopAnalytics({
+        storefront,
+        publicStorefrontId: env.PUBLIC_STOREFRONT_ID,
+      }),
+      consent: {
+        checkoutDomain: env.PUBLIC_CHECKOUT_DOMAIN,
+        storefrontAccessToken: env.PUBLIC_STOREFRONT_API_TOKEN,
+      },
     },
-    {headers},
+    {
+      headers: {
+        'Set-Cookie': await args.context.session.commit(),
+      },
+    },
   );
 }
 
-export default function App() {
+/**
+ * Load data necessary for rendering content above the fold. This is the critical data
+ * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
+ * @param {LoaderFunctionArgs}
+ */
+async function loadCriticalData({context}) {
+  const {storefront} = context;
+
+  const [header] = await Promise.all([
+    storefront.query(HEADER_QUERY, {
+      cache: storefront.CacheLong(),
+      variables: {
+        headerMenuHandle: 'main-menu', // Adjust to your header menu handle
+      },
+    }),
+    // Add other queries here, so that they are loaded in parallel
+  ]);
+
+  return {
+    header,
+  };
+}
+
+/**
+ * Load data for rendering content below the fold. This data is deferred and will be
+ * fetched after the initial page load. If it's unavailable, the page should still 200.
+ * Make sure to not throw any errors here, as it will cause the page to 500.
+ * @param {LoaderFunctionArgs}
+ */
+function loadDeferredData({context}) {
+  const {storefront, customerAccount, cart} = context;
+
+  // defer the footer query (below the fold)
+  const footer = storefront
+    .query(FOOTER_QUERY, {
+      cache: storefront.CacheLong(),
+      variables: {
+        footerMenuHandle: 'footer', // Adjust to your footer menu handle
+      },
+    })
+    .catch((error) => {
+      // Log query errors, but don't throw them so the page can still render
+      console.error(error);
+      return null;
+    });
+  return {
+    cart: cart.get(),
+    isLoggedIn: customerAccount.isLoggedIn(),
+    footer,
+  };
+}
+
+/**
+ * @param {{children?: React.ReactNode}}
+ */
+function Layout({children}) {
   const nonce = useNonce();
-  const data = useLoaderData();
+  /** @type {RootLoader} */
+  const data = useRouteLoaderData('root');
 
   return (
     <html lang="en">
@@ -105,21 +153,34 @@ export default function App() {
         <Links />
       </head>
       <body>
-        <Layout {...data}>
-          <Outlet />
-        </Layout>
+        {data ? (
+          <Analytics.Provider
+            cart={data.cart}
+            shop={data.shop}
+            consent={data.consent}
+          >
+            <PageLayout {...data}>{children}</PageLayout>
+          </Analytics.Provider>
+        ) : (
+          children
+        )}
         <ScrollRestoration nonce={nonce} />
         <Scripts nonce={nonce} />
-        <LiveReload nonce={nonce} />
       </body>
     </html>
   );
 }
 
+export default function App() {
+  return (
+    <Layout>
+      <Outlet />
+    </Layout>
+  );
+}
+
 export function ErrorBoundary() {
   const error = useRouteError();
-  const [root] = useMatches();
-  const nonce = useNonce();
   let errorMessage = 'Unknown error';
   let errorStatus = 500;
 
@@ -131,131 +192,22 @@ export function ErrorBoundary() {
   }
 
   return (
-    <html lang="en">
-      <head>
-        <meta charSet="utf-8" />
-        <meta name="viewport" content="width=device-width,initial-scale=1" />
-        <Meta />
-        <Links />
-      </head>
-      <body>
-        <Layout {...root.data}>
-          <div className="route-error">
-            <h1>Oops</h1>
-            <h2>{errorStatus}</h2>
-            {errorMessage && (
-              <fieldset>
-                <pre>{errorMessage}</pre>
-              </fieldset>
-            )}
-          </div>
-        </Layout>
-        <ScrollRestoration nonce={nonce} />
-        <Scripts nonce={nonce} />
-        <LiveReload nonce={nonce} />
-      </body>
-    </html>
+    <Layout>
+      <div className="route-error">
+        <h1>Oops</h1>
+        <h2>{errorStatus}</h2>
+        {errorMessage && (
+          <fieldset>
+            <pre>{errorMessage}</pre>
+          </fieldset>
+        )}
+      </div>
+    </Layout>
   );
 }
 
-/**
- * Validates the customer access token and returns a boolean and headers
- * @see https://shopify.dev/docs/api/storefront/latest/objects/CustomerAccessToken
- *
- * @example
- * ```ts
- * //
- * const {isLoggedIn, headers} = await validateCustomerAccessToken(
- *  customerAccessToken,
- *  session,
- *  );
- *  ```
- *  */
-async function validateCustomerAccessToken(customerAccessToken, session) {
-  let isLoggedIn = false;
-  const headers = new Headers();
-  if (!customerAccessToken?.accessToken || !customerAccessToken?.expiresAt) {
-    return {isLoggedIn, headers};
-  }
-  const expiresAt = new Date(customerAccessToken.expiresAt);
-  const dateNow = new Date();
-  const customerAccessTokenExpired = expiresAt < dateNow;
-  if (customerAccessTokenExpired) {
-    session.unset('customerAccessToken');
-    headers.append('Set-Cookie', await session.commit());
-  } else {
-    isLoggedIn = true;
-  }
+/** @typedef {LoaderReturnData} RootLoader */
 
-  return {isLoggedIn, headers};
-}
-
-const MENU_FRAGMENT = `#graphql
-  fragment MenuItem on MenuItem {
-    id
-    resourceId
-    tags
-    title
-    type
-    url
-  }
-  fragment ChildMenuItem on MenuItem {
-    ...MenuItem
-  }
-  fragment ParentMenuItem on MenuItem {
-    ...MenuItem
-    items {
-      ...ChildMenuItem
-    }
-  }
-  fragment Menu on Menu {
-    id
-    items {
-      ...ParentMenuItem
-    }
-  }
-`;
-
-const HEADER_QUERY = `#graphql
-  fragment Shop on Shop {
-    id
-    name
-    description
-    primaryDomain {
-      url
-    }
-    brand {
-      logo {
-        image {
-          url
-        }
-      }
-    }
-  }
-  query Header(
-    $country: CountryCode
-    $headerMenuHandle: String!
-    $language: LanguageCode
-  ) @inContext(language: $language, country: $country) {
-    shop {
-      ...Shop
-    }
-    menu(handle: $headerMenuHandle) {
-      ...Menu
-    }
-  }
-  ${MENU_FRAGMENT}
-`;
-
-const FOOTER_QUERY = `#graphql
-  query Footer(
-    $country: CountryCode
-    $footerMenuHandle: String!
-    $language: LanguageCode
-  ) @inContext(language: $language, country: $country) {
-    menu(handle: $footerMenuHandle) {
-      ...Menu
-    }
-  }
-  ${MENU_FRAGMENT}
-`;
+/** @typedef {import('@shopify/remix-oxygen').LoaderFunctionArgs} LoaderFunctionArgs */
+/** @typedef {import('@remix-run/react').ShouldRevalidateFunction} ShouldRevalidateFunction */
+/** @typedef {import('@shopify/remix-oxygen').SerializeFrom<typeof loader>} LoaderReturnData */

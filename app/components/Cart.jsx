@@ -1,12 +1,17 @@
-import {CartForm, Image, Money} from '@shopify/hydrogen';
+import {CartForm, Image, Money, useOptimisticCart} from '@shopify/hydrogen';
 import {Link} from '@remix-run/react';
-import {useVariantUrl} from '~/utils';
+import {useVariantUrl} from '~/lib/variants';
 
-export function CartMain({layout, cart}) {
+/**
+ * @param {CartMainProps}
+ */
+export function CartMain({layout, cart: originalCart}) {
+  const cart = useOptimisticCart(originalCart);
+
   const linesCount = Boolean(cart?.lines?.nodes?.length || 0);
   const withDiscount =
     cart &&
-    Boolean(cart.discountCodes.filter((code) => code.applicable).length);
+    Boolean(cart?.discountCodes?.filter((code) => code.applicable)?.length);
   const className = `cart-main ${withDiscount ? 'with-discount' : ''}`;
 
   return (
@@ -17,12 +22,18 @@ export function CartMain({layout, cart}) {
   );
 }
 
+/**
+ * @param {{
+ *   cart: OptimisticCart<CartApiQueryFragment>;
+ *   layout: 'page' | 'aside';
+ * }}
+ */
 function CartDetails({layout, cart}) {
   const cartHasItems = !!cart && cart.totalQuantity > 0;
 
   return (
     <div className="cart-details">
-      <CartLines lines={cart?.lines} layout={layout} />
+      <CartLines lines={cart?.lines?.nodes} layout={layout} />
       {cartHasItems && (
         <CartSummary cost={cart.cost} layout={layout}>
           <CartDiscounts discountCodes={cart.discountCodes} />
@@ -33,13 +44,19 @@ function CartDetails({layout, cart}) {
   );
 }
 
+/**
+ * @param {{
+ *   layout: CartMainProps['layout'];
+ *   lines: CartLine[];
+ * }}
+ */
 function CartLines({lines, layout}) {
   if (!lines) return null;
 
   return (
     <div aria-labelledby="cart-lines">
       <ul>
-        {lines.nodes.map((line) => (
+        {lines.map((line) => (
           <CartLineItem key={line.id} line={line} layout={layout} />
         ))}
       </ul>
@@ -47,6 +64,12 @@ function CartLines({lines, layout}) {
   );
 }
 
+/**
+ * @param {{
+ *   layout: CartMainProps['layout'];
+ *   line: CartLine;
+ * }}
+ */
 function CartLineItem({layout, line}) {
   const {id, merchandise} = line;
   const {product, title, image, selectedOptions} = merchandise;
@@ -96,6 +119,9 @@ function CartLineItem({layout, line}) {
   );
 }
 
+/**
+ * @param {{checkoutUrl: string}}
+ */
 function CartCheckoutActions({checkoutUrl}) {
   if (!checkoutUrl) return null;
 
@@ -109,6 +135,13 @@ function CartCheckoutActions({checkoutUrl}) {
   );
 }
 
+/**
+ * @param {{
+ *   children?: React.ReactNode;
+ *   cost: CartApiQueryFragment['cost'];
+ *   layout: CartMainProps['layout'];
+ * }}
+ */
 export function CartSummary({cost, layout, children = null}) {
   const className =
     layout === 'page' ? 'cart-summary-page' : 'cart-summary-aside';
@@ -131,31 +164,42 @@ export function CartSummary({cost, layout, children = null}) {
   );
 }
 
-function CartLineRemoveButton({lineIds}) {
+/**
+ * @param {{
+ *   lineIds: string[];
+ *   disabled: boolean;
+ * }}
+ */
+function CartLineRemoveButton({lineIds, disabled}) {
   return (
     <CartForm
       route="/cart"
       action={CartForm.ACTIONS.LinesRemove}
       inputs={{lineIds}}
     >
-      <button type="submit">Remove</button>
+      <button disabled={disabled} type="submit">
+        Remove
+      </button>
     </CartForm>
   );
 }
 
+/**
+ * @param {{line: CartLine}}
+ */
 function CartLineQuantity({line}) {
   if (!line || typeof line?.quantity === 'undefined') return null;
-  const {id: lineId, quantity} = line;
+  const {id: lineId, quantity, isOptimistic} = line;
   const prevQuantity = Number(Math.max(0, quantity - 1).toFixed(0));
   const nextQuantity = Number((quantity + 1).toFixed(0));
 
   return (
-    <div className="cart-line-quantiy">
+    <div className="cart-line-quantity">
       <small>Quantity: {quantity} &nbsp;&nbsp;</small>
       <CartLineUpdateButton lines={[{id: lineId, quantity: prevQuantity}]}>
         <button
           aria-label="Decrease quantity"
-          disabled={quantity <= 1}
+          disabled={quantity <= 1 || !!isOptimistic}
           name="decrease-quantity"
           value={prevQuantity}
         >
@@ -168,18 +212,27 @@ function CartLineQuantity({line}) {
           aria-label="Increase quantity"
           name="increase-quantity"
           value={nextQuantity}
+          disabled={!!isOptimistic}
         >
           <span>&#43;</span>
         </button>
       </CartLineUpdateButton>
       &nbsp;
-      <CartLineRemoveButton lineIds={[lineId]} />
+      <CartLineRemoveButton lineIds={[lineId]} disabled={!!isOptimistic} />
     </div>
   );
 }
 
+/**
+ * @param {{
+ *   line: CartLine;
+ *   priceType?: 'regular' | 'compareAt';
+ *   [key: string]: any;
+ * }}
+ */
 function CartLinePrice({line, priceType = 'regular', ...passthroughProps}) {
-  if (!line?.cost?.amountPerQuantity || !line?.cost?.totalAmount) return null;
+  if (!line?.cost?.amountPerQuantity || !line?.cost?.totalAmount)
+    return <div style={{visibility: 'hidden'}}>&nbsp;</div>;
 
   const moneyV2 =
     priceType === 'regular'
@@ -187,7 +240,7 @@ function CartLinePrice({line, priceType = 'regular', ...passthroughProps}) {
       : line.cost.compareAtAmountPerQuantity;
 
   if (moneyV2 == null) {
-    return null;
+    return <div style={{visibility: 'hidden'}}>&nbsp;</div>;
   }
 
   return (
@@ -197,6 +250,12 @@ function CartLinePrice({line, priceType = 'regular', ...passthroughProps}) {
   );
 }
 
+/**
+ * @param {{
+ *   hidden: boolean;
+ *   layout?: CartMainProps['layout'];
+ * }}
+ */
 export function CartEmpty({hidden = false, layout = 'aside'}) {
   return (
     <div hidden={hidden}>
@@ -220,6 +279,11 @@ export function CartEmpty({hidden = false, layout = 'aside'}) {
   );
 }
 
+/**
+ * @param {{
+ *   discountCodes: CartApiQueryFragment['discountCodes'];
+ * }}
+ */
 function CartDiscounts({discountCodes}) {
   const codes =
     discountCodes
@@ -254,6 +318,12 @@ function CartDiscounts({discountCodes}) {
   );
 }
 
+/**
+ * @param {{
+ *   discountCodes?: string[];
+ *   children: React.ReactNode;
+ * }}
+ */
 function UpdateDiscountForm({discountCodes, children}) {
   return (
     <CartForm
@@ -268,6 +338,12 @@ function UpdateDiscountForm({discountCodes, children}) {
   );
 }
 
+/**
+ * @param {{
+ *   children: React.ReactNode;
+ *   lines: CartLineUpdateInput[];
+ * }}
+ */
 function CartLineUpdateButton({children, lines}) {
   return (
     <CartForm
@@ -279,3 +355,15 @@ function CartLineUpdateButton({children, lines}) {
     </CartForm>
   );
 }
+
+/** @typedef {OptimisticCart<CartApiQueryFragment>['lines']['nodes'][0]} CartLine */
+/**
+ * @typedef {{
+ *   cart: CartApiQueryFragment | null;
+ *   layout: 'page' | 'aside';
+ * }} CartMainProps
+ */
+
+/** @typedef {import('@shopify/hydrogen').OptimisticCart} OptimisticCart */
+/** @typedef {import('@shopify/hydrogen/storefront-api-types').CartLineUpdateInput} CartLineUpdateInput */
+/** @typedef {import('storefrontapi.generated').CartApiQueryFragment} CartApiQueryFragment */

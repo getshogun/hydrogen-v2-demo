@@ -1,6 +1,8 @@
-import {useRouteError, isRouteErrorResponse} from '@remix-run/react';
 import {parseGid} from '@shopify/hydrogen';
 
+/**
+ * @param {LoaderFunctionArgs}
+ */
 export async function loader({request, context}) {
   const url = new URL(request.url);
 
@@ -19,33 +21,9 @@ export async function loader({request, context}) {
   });
 }
 
-export function ErrorBoundary() {
-  const error = useRouteError();
-
-  if (isRouteErrorResponse(error)) {
-    return (
-      <div>
-        <h1>Oops</h1>
-        <p>Status: {error.status}</p>
-        <p>{error.data.message}</p>
-      </div>
-    );
-  }
-
-  let errorMessage = 'Unknown error';
-  if (error instanceof Error) {
-    errorMessage = error.message;
-  }
-
-  return (
-    <div>
-      <h1>Uh oh ...</h1>
-      <p>Something went wrong.</p>
-      <pre>{errorMessage}</pre>
-    </div>
-  );
-}
-
+/**
+ * @param {{shopId?: string; url?: string}}
+ */
 function robotsTxtData({url, shopId}) {
   const sitemapUrl = url ? `${url}/sitemap.xml` : undefined;
 
@@ -87,6 +65,10 @@ Crawl-delay: 1
 /**
  * This function generates disallow rules that generally follow what Shopify's
  * Online Store has as defaults for their robots.txt
+ * @param {{
+ *   shopId?: string;
+ *   sitemapUrl?: string;
+ * }}
  */
 function generalDisallowRules({shopId, sitemapUrl}) {
   return `Disallow: /admin
@@ -136,3 +118,6 @@ const ROBOTS_QUERY = `#graphql
     }
   }
 `;
+
+/** @typedef {import('@shopify/remix-oxygen').LoaderFunctionArgs} LoaderFunctionArgs */
+/** @typedef {import('@shopify/remix-oxygen').SerializeFrom<typeof loader>} LoaderReturnData */
