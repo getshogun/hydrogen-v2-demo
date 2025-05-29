@@ -3,6 +3,11 @@
  */
 export const SHOGUN_CSP_DIRECTIVES = {
   defaultSrc: [
+    // -- Start: CSP settings for src
+    "'unsafe-inline'",
+    // "'strict-dynamic'",
+    // -- End: CSP settings for src
+
     // -- start: shopify defaults
     "'self'",
     'https://cdn.shopify.com',
@@ -20,9 +25,10 @@ export const SHOGUN_CSP_DIRECTIVES = {
     'https://maxcdn.bootstrapcdn.com',
   ],
   styleSrc: [
+    "'unsafe-inline'",
+
     // -- start: shopify defaults
     "'self'",
-    "'unsafe-inline'",
     'https://cdn.shopify.com',
     // -- end: shopify defaults
 
