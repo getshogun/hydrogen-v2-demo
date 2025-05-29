@@ -12,6 +12,7 @@ export const SHOGUN_CSP_DIRECTIVES = {
 
     'https://cdn.getshogun.com',
     'https://i.shgcdn.com',
+    'https://a.shgcdn2.com',
     'https://views.unsplash.com',
     'https://fonts.gstatic.com',
     'https://www.youtube.com',
@@ -27,6 +28,7 @@ export const SHOGUN_CSP_DIRECTIVES = {
 
     'https://cdn.getshogun.com',
     'https://i.shgcdn.com',
+    'https://a.shgcdn2.com',
     'https://fonts.googleapis.com',
   ],
 };
