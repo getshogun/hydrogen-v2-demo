@@ -106,3 +106,22 @@ By default, Hydrogen sets up [Content Security Policy](https://shopify.dev/docs/
 [csp.js](apps/shogun/csp.js) shows the default Shogun config.
 
 If you need to add any other domains you can add them here or make an additional config that you merge with this Shogun config.
+
+## Does Shogun support 'strict-dynamic' in Content Security Policy (CSP)?
+
+Yes. Shogun now fully supports the 'strict-dynamic' directive in your CSP. This means your site can maintain a high level of security while still loading dynamic content and scripts from Shogun. As long as your implementation includes a valid nonce, Shogun's scripts will load and function correctly without requiring unsafe configurations.
+
+### How to enable it:
+
+To activate 'strict-dynamic', open the [csp.js](apps/shogun/csp.js) file in your Hydrogen project and locate the SHOGUN_CSP_DIRECTIVES object. Inside the defaultSrc array, comment out or remove 'unsafe-inline', and uncomment 'strict-dynamic'. Your updated defaultSrc should look like this:
+
+```javascript
+defaultSrc: [
+  // -- Start: CSP settings for src
+  "'strict-dynamic'", // ✅ Enable this
+  // "'unsafe-inline'", // ❌ Disable this
+
+  "'self'",
+  // ...
+],
+```

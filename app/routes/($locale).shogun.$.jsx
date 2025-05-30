@@ -1,4 +1,5 @@
 import { useLoaderData } from '@remix-run/react';
+import { useNonce } from '@shopify/hydrogen';
 import { ShogunPage, getShogunPage } from '~/shogun';
 
 // If you host this route under a different path, update the BASE_PATH
@@ -36,6 +37,15 @@ export async function loader({ request, context }) {
 
 export default function Shogun() {
   const pageData = useLoaderData();
+  const nonce = useNonce();
 
-  return <ShogunPage pageData={pageData} />;
+  // Inject nonce in script tags for CSP compliance
+  const processedHtml = nonce
+  ? pageData.replace(
+      /<script(?![^>]*\bnonce=)([^>]*)>/gi,
+      `<script nonce="${nonce}"$1>`
+    )
+  : pageData;
+
+  return <ShogunPage pageData={processedHtml} />;
 }
